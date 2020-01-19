@@ -34,10 +34,11 @@ RUN pip install --user -e detectron2_repo
 # Set a fixed model cache directory.
 ENV FVCORE_CACHE="/tmp"
 WORKDIR /home/appuser/detectron2_repo
-
 # run it, for example:
-# wget http://images.cocodataset.org/val2017/000000439715.jpg -O input.jpg
-# python3 demo/demo.py  \
-	#--config-file configs/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml \
-	#--input input.jpg --output outputs/ \
-	#--opts MODEL.WEIGHTS detectron2://COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl
+RUN wget http://images.cocodataset.org/val2017/000000439715.jpg -O input.jpg
+RUN echo "python3 demo/demo.py \\ " >> test.sh && \ 
+    echo " --config-file configs/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml \\ " >> test.sh && \ 
+    echo "--input input.jpg --output outputs/ \\" >> test.sh && \ 
+    echo "--opts MODEL.WEIGHTS detectron2://COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl" >> test.sh 
+RUN echo "1" > /log.log
+ENTRYPOINT tail -f /log.log
