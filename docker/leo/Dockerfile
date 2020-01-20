@@ -32,10 +32,10 @@ ENV TORCH_CUDA_ARCH_LIST="Kepler;Kepler+Tesla;Maxwell;Maxwell+Tegra;Pascal;Volta
 RUN pip install --user -e detectron2_repo
 
 # Set a fixed model cache directory.
-ENV FVCORE_CACHE="/model"
+ENV FVCORE_CACHE="/models"
 WORKDIR /home/appuser/detectron2_repo
 # run it, for example:
-RUN mkdir /model && mkdir ./media && wget http://images.cocodataset.org/val2017/000000439715.jpg -O ./media/input.jpg
+RUN mkdir /models && mkdir ./media && wget http://images.cocodataset.org/val2017/000000439715.jpg -O ./media/input.jpg
 RUN echo "python3 demo/demo.py \\" >> test.sh && \ 
     echo "   --config-file configs/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml \\" >> test.sh && \ 
     echo "   --input ./media/input.jpg --output outputs/ \\" >> test.sh && \ 
