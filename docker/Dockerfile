@@ -40,5 +40,5 @@ RUN echo "python3 demo/demo.py \\ " >> test.sh && \
     echo " --config-file configs/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml \\ " >> test.sh && \ 
     echo "--input input.jpg --output outputs/ \\" >> test.sh && \ 
     echo "--opts MODEL.WEIGHTS detectron2://COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl" >> test.sh 
-RUN echo "1" > /log.log
-ENTRYPOINT tail -f /log.log
+RUN echo "1" > /home/appuser/detectron2_repo/log.log
+ENTRYPOINT tail -f /home/appuser/detectron2_repo/log.log
