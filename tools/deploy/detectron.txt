@@ -1,0 +1,52 @@
+docker run --rm -it \
+	-v /root/dataset19/jiapinai:/source \
+	-v /root/dataset19/models/detectron2:/root/.torch/fvcore_cache/detectron2 \
+	-v /root/dataset19/models/detectron2:/home/appuser/.torch/fvcore_cache/detectron2 \
+	--workdir /source/detectron2-master/tools/deploy/ \
+	--entrypoint bash \
+	registry.cn-hangzhou.aliyuncs.com/kz-cloud/detectron2 
+
+
+cd /source/detectron2-master/tools/deploy
+pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+pip install --user mock onnx detectron2
+sudo ln -s ../../datasets datasets
+sudo ln -s ../../detectron2/export export
+
+sudo ./caffe2_converter.py \
+	--config-file ../../configs/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml \
+	--output ./caffe2_model \
+	--run-evalMODEL.WEIGHTS \
+	detectron2://COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl \
+	MODEL.DEVICE gpu
+
+
+python3 ./caffe2_converter.py \
+	--config-file ../../configs/COCO-Keypoints/keypoint_rcnn_R_50_FPN_3x.yaml \
+	--output ./caffe2_model \
+	--run-eval MODEL.WEIGHTS \
+	detectron2://COCO-Keypoints/keypoint_rcnn_R_50_FPN_3x/137849621/model_final_a6e10b.pkl \
+	MODEL.DEVICE cuda
+
+
+sudo python3 ./traced.py \
+	--config-file ../../configs/COCO-Keypoints/keypoint_rcnn_R_101_FPN_3x.yaml \
+	--output ./caffe2_model \
+	--run-eval MODEL.WEIGHTS \
+	detectron2://COCO-Keypoints/keypoint_rcnn_X_101_32x8d_FPN_3x/139686956/model_final_5ad38f.pkl \
+	MODEL.DEVICE cpu
+
+
+
+sudo python3 ./traced.py \
+	--config-file ../../configs/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml \
+	--output ./caffe2_model \
+	--run-eval MODEL.WEIGHTS \
+	detectron2://COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x/138205316/model_final_a3ec72.pkl \
+	MODEL.DEVICE cpu
+
+
+
+
+
+	
