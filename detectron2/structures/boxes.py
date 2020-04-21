@@ -5,8 +5,6 @@ from enum import IntEnum, unique
 from typing import Iterator, List, Tuple, Union
 import torch
 
-from detectron2.layers import cat
-
 _RawBoxType = Union[List[float], Tuple[float, ...], torch.Tensor, np.ndarray]
 
 
@@ -14,23 +12,30 @@ _RawBoxType = Union[List[float], Tuple[float, ...], torch.Tensor, np.ndarray]
 class BoxMode(IntEnum):
     """
     Enum of different ways to represent a box.
-
-    Attributes:
-
-        XYXY_ABS: (x0, y0, x1, y1) in absolute floating points coordinates.
-            The coordinates in range [0, width or height].
-        XYWH_ABS: (x0, y0, w, h) in absolute floating points coordinates.
-        XYXY_REL: (x0, y0, x1, y1) in range [0, 1]. They are relative to the size of the image.
-        XYWH_REL: (x0, y0, w, h) in range [0, 1]. They are relative to the size of the image.
-        XYWHA_ABS: (xc, yc, w, h, a) in absolute floating points coordinates.
-            (xc, yc) is the center of the rotated box, and the angle a is in degrees ccw.
     """
 
     XYXY_ABS = 0
+    """
+    (x0, y0, x1, y1) in absolute floating points coordinates.
+    The coordinates in range [0, width or height].
+    """
     XYWH_ABS = 1
+    """
+    (x0, y0, w, h) in absolute floating points coordinates.
+    """
     XYXY_REL = 2
+    """
+    (x0, y0, x1, y1) in range [0, 1]. They are relative to the size of the image.
+    """
     XYWH_REL = 3
+    """
+    (x0, y0, w, h) in range [0, 1]. They are relative to the size of the image.
+    """
     XYWHA_ABS = 4
+    """
+    (xc, yc, w, h, a) in absolute floating points coordinates.
+    (xc, yc) is the center of the rotated box, and the angle a is in degrees ccw.
+    """
 
     @staticmethod
     def convert(box: _RawBoxType, from_mode: "BoxMode", to_mode: "BoxMode") -> _RawBoxType:
@@ -93,6 +98,13 @@ class BoxMode(IntEnum):
             arr[:, 3] = arr[:, 1] + new_h
 
             arr = arr[:, :4].to(dtype=original_dtype)
+        elif from_mode == BoxMode.XYWH_ABS and to_mode == BoxMode.XYWHA_ABS:
+            original_dtype = arr.dtype
+            arr = arr.double()
+            arr[:, 0] += arr[:, 2] / 2.0
+            arr[:, 1] += arr[:, 3] / 2.0
+            angles = torch.zeros((arr.shape[0], 1), dtype=arr.dtype)
+            arr = torch.cat((arr, angles), axis=1).to(dtype=original_dtype)
         else:
             if to_mode == BoxMode.XYXY_ABS and from_mode == BoxMode.XYWH_ABS:
                 arr[:, 2] += arr[:, 0]
@@ -108,7 +120,7 @@ class BoxMode(IntEnum):
                 )
 
         if single_box:
-            return original_type(arr.flatten())
+            return original_type(arr.flatten().tolist())
         if is_numpy:
             return arr.numpy()
         else:
@@ -124,7 +136,7 @@ class Boxes:
     (support indexing, `to(device)`, `.device`, and iteration over all boxes)
 
     Attributes:
-        tensor (torch.Tensor): float matrix of Nx4.
+        tensor (torch.Tensor): float matrix of Nx4. Each row is (x1, y1, x2, y2).
     """
 
     BoxSizeType = Union[List[int], Tuple[int, int]]
@@ -137,7 +149,9 @@ class Boxes:
         device = tensor.device if isinstance(tensor, torch.Tensor) else torch.device("cpu")
         tensor = torch.as_tensor(tensor, dtype=torch.float32, device=device)
         if tensor.numel() == 0:
-            tensor = torch.zeros(0, 4, dtype=torch.float32, device=device)
+            # Use reshape, so we don't end up creating a new tensor that does not depend on
+            # the inputs (and consequently confuses jit)
+            tensor = tensor.reshape((0, 4)).to(dtype=torch.float32, device=device)
         assert tensor.dim() == 2 and tensor.size(-1) == 4, tensor.size()
 
         self.tensor = tensor
@@ -180,7 +194,7 @@ class Boxes:
         self.tensor[:, 2].clamp_(min=0, max=w)
         self.tensor[:, 3].clamp_(min=0, max=h)
 
-    def nonempty(self, threshold: int = 0) -> torch.Tensor:
+    def nonempty(self, threshold: float = 0.0) -> torch.Tensor:
         """
         Find boxes that are non-empty.
         A box is considered empty, if either of its side is no larger than threshold.
@@ -202,6 +216,7 @@ class Boxes:
             Boxes: Create a new :class:`Boxes` by indexing.
 
         The following usage are allowed:
+
         1. `new_boxes = boxes[3]`: return a `Boxes` which contains only one box.
         2. `new_boxes = boxes[2:10]`: return a slice of boxes.
         3. `new_boxes = boxes[vector]`, where vector is a torch.BoolTensor
@@ -255,8 +270,8 @@ class Boxes:
         self.tensor[:, 0::2] *= scale_x
         self.tensor[:, 1::2] *= scale_y
 
-    @staticmethod
-    def cat(boxes_list: List["Boxes"]) -> "Boxes":
+    @classmethod
+    def cat(cls, boxes_list: List["Boxes"]) -> "Boxes":
         """
         Concatenates a list of Boxes into a single Boxes
 
@@ -267,10 +282,12 @@ class Boxes:
             Boxes: the concatenated Boxes
         """
         assert isinstance(boxes_list, (list, tuple))
-        assert len(boxes_list) > 0
+        if len(boxes_list) == 0:
+            return cls(torch.empty(0))
         assert all(isinstance(box, Boxes) for box in boxes_list)
 
-        cat_boxes = type(boxes_list[0])(cat([b.tensor for b in boxes_list], dim=0))
+        # use torch.cat (v.s. layers.cat) so the returned boxes never share storage with input
+        cat_boxes = cls(torch.cat([b.tensor for b in boxes_list], dim=0))
         return cat_boxes
 
     @property

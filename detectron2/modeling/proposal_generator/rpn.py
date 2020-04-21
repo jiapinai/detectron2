@@ -14,7 +14,7 @@ from .build import PROPOSAL_GENERATOR_REGISTRY
 from .rpn_outputs import RPNOutputs, find_top_rpn_proposals
 
 RPN_HEAD_REGISTRY = Registry("RPN_HEAD")
-"""
+RPN_HEAD_REGISTRY.__doc__ = """
 Registry for RPN heads, which take feature maps and perform
 objectness classification and bounding box regression for anchors.
 
@@ -95,13 +95,13 @@ class RPN(nn.Module):
         super().__init__()
 
         # fmt: off
-        self.min_box_side_len        = cfg.MODEL.PROPOSAL_GENERATOR.MIN_SIZE
-        self.in_features             = cfg.MODEL.RPN.IN_FEATURES
-        self.nms_thresh              = cfg.MODEL.RPN.NMS_THRESH
-        self.batch_size_per_image    = cfg.MODEL.RPN.BATCH_SIZE_PER_IMAGE
-        self.positive_fraction       = cfg.MODEL.RPN.POSITIVE_FRACTION
-        self.smooth_l1_beta          = cfg.MODEL.RPN.SMOOTH_L1_BETA
-        self.loss_weight             = cfg.MODEL.RPN.LOSS_WEIGHT
+        self.min_box_side_len     = cfg.MODEL.PROPOSAL_GENERATOR.MIN_SIZE
+        self.in_features          = cfg.MODEL.RPN.IN_FEATURES
+        self.nms_thresh           = cfg.MODEL.RPN.NMS_THRESH
+        self.batch_size_per_image = cfg.MODEL.RPN.BATCH_SIZE_PER_IMAGE
+        self.positive_fraction    = cfg.MODEL.RPN.POSITIVE_FRACTION
+        self.smooth_l1_beta       = cfg.MODEL.RPN.SMOOTH_L1_BETA
+        self.loss_weight          = cfg.MODEL.RPN.LOSS_WEIGHT
         # fmt: on
 
         # Map from self.training state to train/test settings
@@ -181,11 +181,5 @@ class RPN(nn.Module):
                 self.min_box_side_len,
                 self.training,
             )
-            # For RPN-only models, the proposals are the final output and we return them in
-            # high-to-low confidence order.
-            # For end-to-end models, the RPN proposals are an intermediate state
-            # and this sorting is actually not needed. But the cost is negligible.
-            inds = [p.objectness_logits.sort(descending=True)[1] for p in proposals]
-            proposals = [p[ind] for p, ind in zip(proposals, inds)]
 
         return proposals, losses
