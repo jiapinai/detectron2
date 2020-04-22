@@ -28,9 +28,16 @@ RUN git clone https://github.com/facebookresearch/detectron2 /detectron2_repo
 
 RUN pip install mock detectron2 onnx
 
+# prepare val dataset
+ADD val2017_img_list.txt /detectron2_repo/datasets/val2017_img_list.txt
 RUN cd /detectron2_repo/datasets \
   && ./prepare_for_tests.sh \
-  && mkdir coco/val2017
+  && mkdir coco/val2017 \
+  && cd coco/val2017 \
+  && cat /detectron2_repo/datasets/val2017_img_list.txt | grep jpg | xargs -n1 wget \
+  && ls | wc -l
+  
+RUN ln -s /detectron2_repo/datasets /detectron2_repo/tools/deploy
 
 # Set a fixed model cache directory.
 ENV FVCORE_CACHE="/tmp"
@@ -42,8 +49,8 @@ RUN echo "python3 demo/demo.py \\ " >> test.sh && \
     echo "--input input.jpg --output outputs/ \\" >> test.sh && \ 
     echo "--opts MODEL.WEIGHTS detectron2://COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl" >> test.sh 
 
-RUN echo "1" > /home/appuser/detectron2_repo/log.log \
+RUN echo "1" > /detectron2_repo/log.log \
     && sudo ln -s /home/appuser/.local/ /root/ \
     && pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
     
-ENTRYPOINT tail -f /home/appuser/detectron2_repo/log.log
+ENTRYPOINT tail -f /detectron2_repo/log.log
