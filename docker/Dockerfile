@@ -2,7 +2,7 @@ FROM nvidia/cuda:10.1-cudnn7-devel
 
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update && apt-get install -y \
-	python3-opencv ca-certificates python3-dev git wget sudo  \
+	python3-opencv ca-certificates python3-dev git wget sudo libopencv-dev vim \
 	cmake protobuf-compiler libprotobuf-dev && \
   rm -rf /var/lib/apt/lists/*
 RUN ln -sv /usr/bin/python3 /usr/bin/python
@@ -21,7 +21,7 @@ RUN wget https://bootstrap.pypa.io/get-pip.py && \
 
 # install dependencies
 # See https://pytorch.org/ for other options if you use a different version of CUDA
-RUN pip install --user torch torchvision tensorboard cython
+RUN pip install --user torch torchvision tensorboard cython mock onnx
 RUN pip install --user 'git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI'
 
 RUN pip install --user 'git+https://github.com/facebookresearch/fvcore'
@@ -42,5 +42,7 @@ RUN echo "python3 demo/demo.py \\ " >> test.sh && \
     echo " --config-file configs/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml \\ " >> test.sh && \ 
     echo "--input input.jpg --output outputs/ \\" >> test.sh && \ 
     echo "--opts MODEL.WEIGHTS detectron2://COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl" >> test.sh 
-RUN echo "1" > /home/appuser/detectron2_repo/log.log
+RUN echo "1" > /home/appuser/detectron2_repo/log.log \
+    && sudo ln -s /home/appuser/.local/ /root/ \
+    && pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 ENTRYPOINT tail -f /home/appuser/detectron2_repo/log.log
